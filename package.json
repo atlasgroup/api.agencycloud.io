@@ -1,0 +1,10 @@
+{
+  "name": "api.agencycloud.io",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "aws-sdk": "^2.1.6",
+    "redis": "^0.12.1",
+    "socket.io": "^1.2.1"
+  }
+}
