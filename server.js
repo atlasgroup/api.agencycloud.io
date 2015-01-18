@@ -54,6 +54,30 @@ io.on( 'connection' , function ( socket ) {
 
   });
 
+  socket.on( 'data:get' , function( account , callback ) {
+
+    redis.get( account , function( error , data ) {
+
+      console.log( data );
+
+      callback( data );
+
+    });
+
+  });
+
+  socket.on( 'data:set' , function( data , callback ) {
+
+    redis.set( JSON.parse( data ).account , data , function( error , response ) {
+
+      console.log( response );
+
+      callback( response );
+
+    });
+
+  });
+
   socket.on( 'data:load' , function( account ) {
 
     redis.get( account , function( error , data ) {
@@ -63,6 +87,69 @@ io.on( 'connection' , function ( socket ) {
       socket.emit( 'data:loaded' , data );
 
     });
+
+  });
+
+  socket.on( 'aws:credentials:get' , function( callback ) {
+
+    var today = new Date().toJSON().slice( 0 , 10 ).split( '-' ).join( '' );
+
+    var policy = {
+      "expiration": "2020-12-01T12:00:00.000Z",
+      "conditions": [
+        {"bucket": "original.freedommodels.com"},
+        ["starts-with", "$key", ""],
+        ["starts-with", "$success_action_status", ""],
+        {"x-amz-credential": process.env.AWS_ACCESS_KEY_ID + "/" + today + "/us-west-2/s3/aws4_request"},
+        {"x-amz-algorithm": "AWS4-HMAC-SHA256"},
+        {"x-amz-date": today + "T000000Z"}
+      ]
+    };
+
+    var base64Policy = Buffer( JSON.stringify( policy ) , 'utf-8' ).toString( 'base64' );
+
+    var a = crypto.createHmac( 'sha256' , 'AWS4' + process.env.AWS_SECRET_KEY );
+
+    a.write( today );
+
+    a.end();
+
+    var b = crypto.createHmac( 'sha256' , a.read() );
+
+    b.write( 'us-west-2' );
+
+    b.end();
+
+    var c = crypto.createHmac( 'sha256' , b.read() );
+
+    c.write( 's3' );
+
+    c.end();
+
+    var d = crypto.createHmac( 'sha256' , c.read() );
+
+    d.write( 'aws4_request' );
+
+    d.end();
+
+    var e = crypto.createHmac( 'sha256' , d.read() );
+
+    e.write( new Buffer( base64Policy , 'utf-8') );
+
+    e.end();
+
+    var signature = e.read().toString( 'hex' );
+
+    var credentials = {
+
+      policy : base64Policy,
+      signature : signature
+
+    };
+
+    console.log( credentials );
+
+    callback( credentials );
 
   });
 
