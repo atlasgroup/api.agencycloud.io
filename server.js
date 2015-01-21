@@ -2,6 +2,8 @@ var redis = require( 'redis' ).createClient( 6379 , 'agencycloud.o6hzk8.0001.usw
 
 var io = require( 'socket.io' )( process.env.PORT || 8080 );
 
+var jwt = require( 'jsonwebtoken' );
+
 var crypto = require( 'crypto' );
 
 io.on( 'connection' , function ( socket ) {
@@ -10,57 +12,62 @@ io.on( 'connection' , function ( socket ) {
 
   socket.emit( 'welcome' , 'Welcome to Agency Cloud.' );
 
-  socket.on( 'preview' , function( url , callback ) {
+  socket.on( 'users:update' , function( data ) {
 
-    callback();
+    console.log( 'These are the current users ' , data );
 
-    console.log( 'Removing preview for ' , url );
+    socket.users = data;
 
-    redis.get( 'freedom' , function( error , response ) {
-
-      var data = JSON.parse( response );
-
-      for( var model = 0; model < data.models.length; model++ ) {
-
-        for( var album = 0; album < data.models[ model ].albums.length; album++ ) {
-
-          for( var image = 0; image < data.models[ model ].albums[ album ].images.length; image++ ) {
-
-            if( data.models[ model ].albums[ album ].images[ image ].url === url ) {
-
-              delete data.models[ model ].albums[ album ].images[ image ].blob;
-
-              delete data.models[ model ].albums[ album ].images[ image ].file;
-
-              delete data.models[ model ].albums[ album ].images[ image ].index;
-
-              delete data.models[ model ].albums[ album ].images[ image ].preview;
-
-            }
-
-          }
-
-        }
-
-      }
-
-      redis.set( 'freedom' , JSON.stringify( data ) , function( error , response ) {
-
-        socket.broadcast.emit( 'data:update' , JSON.stringify( data ) );
-
-      });
-
-    });
+    socket.broadcast.emit( 'users:set' , socket.users );
 
   });
 
-  socket.on( 'data:get' , function( account , callback ) {
+  socket.on( 'authenticate' , function( data , callback ) {
+
+    var user = JSON.parse( data );
+
+    if( user.email === 'r@agencycloud.io' && user.password === 'temporary' || user.email === 's@agencycloud.io' && user.password === 'temporary' || user.email === 'monica@freedommodels.com' && user.password === 'temporary' || user.email === 'maia@freedommodels.com' && user.password === 'temporary' ) {
+
+      var token = jwt.sign({
+
+        email: user.email
+
+      } , process.env.AWS_SECRET_KEY );
+
+      callback({
+
+        token : token,
+        user : user
+
+      });
+
+    } else {
+
+      callback( 'FAIL' );
+
+    }
+
+  });
+
+  socket.on( 'data:get' , function( data , callback ) {
+
+    var account = data.account || data;
+
+    var user = '';
+
+    if( data.token ) {
+
+      user = jwt.verify( data.token , process.env.AWS_SECRET_KEY );
+
+    }
 
     redis.get( account , function( error , data ) {
 
       console.log( data );
 
-      callback( data );
+      socket.users = socket.users || [];
+
+      callback( data , user , socket.users );
 
     });
 
