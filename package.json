@@ -6,6 +6,7 @@
     "aws-sdk": "^2.1.6",
     "jsonwebtoken": "^3.2.2",
     "redis": "^0.12.1",
-    "socket.io": "^1.2.1"
+    "socket.io": "^1.2.1",
+    "underscore": "^1.7.0"
   }
 }

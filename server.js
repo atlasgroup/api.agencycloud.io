@@ -6,6 +6,8 @@ var jwt = require( 'jsonwebtoken' );
 
 var crypto = require( 'crypto' );
 
+var _ = require( 'underscore' );
+
 io.on( 'connection' , function ( socket ) {
 
   console.log( 'Connection!' );
@@ -97,14 +99,14 @@ io.on( 'connection' , function ( socket ) {
 
   });
 
-  socket.on( 'aws:credentials:get' , function( callback ) {
+  socket.on( 'aws:credentials:get' , function( data , callback ) {
 
     var today = new Date().toJSON().slice( 0 , 10 ).split( '-' ).join( '' );
 
     var policy = {
       "expiration": "2020-12-01T12:00:00.000Z",
       "conditions": [
-        {"bucket": "original.freedommodels.com"},
+        {"bucket": "lambdatestbucket"},
         ["starts-with", "$key", ""],
         ["starts-with", "$success_action_status", ""],
         {"x-amz-credential": process.env.AWS_ACCESS_KEY_ID + "/" + today + "/us-west-2/s3/aws4_request"},
@@ -146,6 +148,8 @@ io.on( 'connection' , function ( socket ) {
     e.end();
 
     var signature = e.read().toString( 'hex' );
+
+    console.log( signature );
 
     var credentials = {
 
@@ -256,6 +260,136 @@ io.on( 'connection' , function ( socket ) {
       });
 
     });
+
+  });
+
+  socket.on( 'model:image:sizes:put' , function( image ) {
+
+    console.log( 'AN IMAGE WAS RESIZED' , image );
+
+    var url = ( image.url.split( '/' )[ image.url.split( '/' ).length - 1 ] ).split( '.' )[ 0 ];
+
+    redis.get( image.account , function( error , response ) {
+
+      var data = JSON.parse( response );
+
+      for( var index = 0; index < data.models.length; index++ ) {
+
+        if( data.models[ index ].url === url ) {
+
+          if( data.models[ index ].image.sizes ) {
+
+            if( data.models[ index ].image.sizes.indexOf( image.size ) === -1 ) {
+
+              data.models[ index ].image.sizes.push( image.size );
+
+            }
+
+          } else {
+
+            data.models[ index ].image.sizes = [ image.size ];
+
+          }
+
+        }
+
+      }
+
+      redis.set( image.account , JSON.stringify( data ) , function( error , response ) {
+
+        socket.broadcast.emit( 'model:image:sizes:put' , { model : url , size : image.size } );
+
+        console.log( error , response );
+
+      });
+
+    });
+
+  });
+
+  socket.on( 'done' , function( image , callback ) {
+
+    console.log( 'ELLLOOOOOOOO' , image );
+
+    callback();
+
+    console.log( 'AN IMAGE WAS RESIZED' , image );
+
+    if( image.bucket === 'twoseventwo.freedommodels.com' ) {
+
+      image.size = 272;
+
+    }
+
+    if( image.bucket === 'sevenfivezero.freedommodels.com' ) {
+
+      image.size = 750;
+
+    }
+
+    if( image.bucket === 'onefivethreesix.freedommodels.com' ) {
+
+      image.size = 1536;
+
+    }
+
+    if( image.bucket === 'twoeighteightzero.freedommodels.com' ) {
+
+      image.size = 2880;
+
+    }
+
+    if( image.bucket === 'original.freedommodels.com' ) {
+
+      image.size = 'original';
+
+    }
+
+    var url = ( image.url.split( '/' )[ image.url.split( '/' ).length - 1 ] ).split( '.' )[ 0 ];
+
+    redis.get( 'freedom' , function( error , response ) {
+
+      var data = JSON.parse( response );
+
+      for( var index = 0; index < data.models.length; index++ ) {
+
+        if( data.models[ index ].url === url ) {
+
+          if( data.models[ index ].image.sizes ) {
+
+            if( data.models[ index ].image.sizes.indexOf( image.size ) === -1 ) {
+
+              data.models[ index ].image.sizes.push( image.size );
+
+            }
+
+          } else {
+
+            data.models[ index ].image.sizes = [ image.size ];
+
+          }
+
+        }
+
+      }
+
+      redis.set( 'freedom' , JSON.stringify( data ) , function( error , response ) {
+
+        socket.broadcast.emit( 'model:image:sizes:put' , { model : url , size : image.size } );
+
+        console.log( error , response );
+
+      });
+
+    });
+
+  });
+
+  socket.on( 'model:image:lambda:launched' , function( data ) {
+
+    console.log( 'LAMBDA LAUNCHED FOR' , data );
+
+    socket.broadcast.emit( 'model:image:lambda:launched' , data.size );
 
   });
 
