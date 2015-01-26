@@ -8,6 +8,18 @@ var crypto = require( 'crypto' );
 
 var _ = require( 'underscore' );
 
+var aws = require( 'aws-sdk' );
+
+aws.config.update({
+
+  accessKeyId : process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey : process.env.AWS_SECRET_KEY,
+  region : 'us-west-2'
+
+});
+
+var sqs = new aws.SQS();
+
 io.on( 'connection' , function ( socket ) {
 
   console.log( 'Connection!' );
@@ -162,6 +174,40 @@ io.on( 'connection' , function ( socket ) {
 
     callback( credentials );
 
+    /* Start polling SQS for updates */
+
+    sqs.receiveMessages( { QueueUrl : 'https://sqs.us-west-2.amazonaws.com/114547831232/272' } , function( response ) {
+
+      console.log( response );
+
+      socket.emit( 'progress:put' , response );
+
+    });
+
+    sqs.receiveMessages( { QueueUrl : 'https://sqs.us-west-2.amazonaws.com/114547831232/750' } , function( response ) {
+
+      console.log( response );
+
+      socket.emit( 'progress:put' , response );
+
+    });
+
+    sqs.receiveMessages( { QueueUrl : 'https://sqs.us-west-2.amazonaws.com/114547831232/1536' } , function( response ) {
+
+      console.log( response );
+
+      socket.emit( 'progress:put' , response );
+
+    });
+
+    sqs.receiveMessages( { QueueUrl : 'https://sqs.us-west-2.amazonaws.com/114547831232/2880' } , function( response ) {
+
+      console.log( response );
+
+      socket.emit( 'progress:put' , response );
+
+    });
+
   });
 
   socket.on( 'aws:authenticate' , function() {
@@ -263,51 +309,7 @@ io.on( 'connection' , function ( socket ) {
 
   });
 
-  socket.on( 'model:image:sizes:put' , function( image ) {
-
-    console.log( 'AN IMAGE WAS RESIZED' , image );
-
-    var url = ( image.url.split( '/' )[ image.url.split( '/' ).length - 1 ] ).split( '.' )[ 0 ];
-
-    redis.get( image.account , function( error , response ) {
-
-      var data = JSON.parse( response );
-
-      for( var index = 0; index < data.models.length; index++ ) {
-
-        if( data.models[ index ].url === url ) {
-
-          if( data.models[ index ].image.sizes ) {
-
-            if( data.models[ index ].image.sizes.indexOf( image.size ) === -1 ) {
-
-              data.models[ index ].image.sizes.push( image.size );
-
-            }
-
-          } else {
-
-            data.models[ index ].image.sizes = [ image.size ];
-
-          }
-
-        }
-
-      }
-
-      redis.set( image.account , JSON.stringify( data ) , function( error , response ) {
-
-        socket.broadcast.emit( 'model:image:sizes:put' , { model : url , size : image.size } );
-
-        console.log( error , response );
-
-      });
-
-    });
-
-  });
-
-  socket.on( 'done' , function( image , callback ) {
+  /*socket.on( 'done' , function( image , callback ) {
 
     console.log( 'ELLLOOOOOOOO' , image );
 
@@ -383,14 +385,58 @@ io.on( 'connection' , function ( socket ) {
 
     });
 
-  });
+  });*/
 
-  socket.on( 'model:image:lambda:launched' , function( data ) {
+  /*socket.on( 'model:image:sizes:put' , function( image ) {
+
+    console.log( 'AN IMAGE WAS RESIZED' , image );
+
+    var url = ( image.url.split( '/' )[ image.url.split( '/' ).length - 1 ] ).split( '.' )[ 0 ];
+
+    redis.get( image.account , function( error , response ) {
+
+      var data = JSON.parse( response );
+
+      for( var index = 0; index < data.models.length; index++ ) {
+
+        if( data.models[ index ].url === url ) {
+
+          if( data.models[ index ].image.sizes ) {
+
+            if( data.models[ index ].image.sizes.indexOf( image.size ) === -1 ) {
+
+              data.models[ index ].image.sizes.push( image.size );
+
+            }
+
+          } else {
+
+            data.models[ index ].image.sizes = [ image.size ];
+
+          }
+
+        }
+
+      }
+
+      redis.set( image.account , JSON.stringify( data ) , function( error , response ) {
+
+        socket.broadcast.emit( 'model:image:sizes:put' , { model : url , size : image.size } );
+
+        console.log( error , response );
+
+      });
+
+    });
+
+  });*/
+
+  /*socket.on( 'model:image:lambda:launched' , function( data ) {
 
     console.log( 'LAMBDA LAUNCHED FOR' , data );
 
     socket.broadcast.emit( 'model:image:lambda:launched' , data.size );
 
-  });
+  });*/
 
 });
